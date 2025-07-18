@@ -13,19 +13,35 @@ else:
     st.error("Groq API Key nicht gefunden. Bitte in .streamlit/secrets.toml einfügen.")
     st.stop()
 
+def clean_google_sheet_url(url: str) -> str:
+    """Wandelt edit-URLs in export-CSV-URLs um"""
+    if "edit#gid=" in url:
+        return url.replace("/edit#gid=", "/export?format=csv&gid=")
+    elif "spreadsheets/d/" in url and "gid=" in url and "export" not in url:
+        # Falls jemand z. B. händisch was mit gid gebastelt hat
+        doc_id = url.split("/d/")[1].split("/")[0]
+        gid = url.split("gid=")[-1]
+        return f"https://docs.google.com/spreadsheets/d/{doc_id}/export?format=csv&gid={gid}"
+    return url
+
+
 # Streamlit UI
 st.title("Keyword Clustering mit LLM")
-sheet_url = st.text_input("Gib die Google Sheets URL ein (freigegeben zum Lesen):")
+sheet_url = st.text_input("🔗 Google Sheets URL (öffentlich freigegeben):")
+
+if sheet_url:
+    cleaned_url = clean_google_sheet_url(sheet_url)
+    st.caption(f"📎 Verwendete CSV-URL: {cleaned_url}")
+
 
 # Funktion: Sheet laden
 def load_keywords_from_sheet(url):
     try:
-        if "edit" in url:
-            csv_url = url.replace("/edit#gid=", "/export?format=csv&gid=")
-        else:
-            csv_url = url
-        df = pd.read_csv(sheet_url, header=None, usecols=[0], engine="python",on_bad_lines="skip")
-        keywords = df.iloc[:, 0].dropna().tolist()
+        df = pd.read_csv(cleaned_url, header=None, skiprows=3, usecols=[0])
+
+        MAX_KEYWORDS = 500
+        keywords = df[0].dropna().astype(str).tolist()[:MAX_KEYWORDS]
+
         return keywords
     except Exception as e:
         st.error(f"Fehler beim Laden des Sheets: {e}")
