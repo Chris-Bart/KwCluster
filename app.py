@@ -24,7 +24,7 @@ def load_keywords_from_sheet(url):
             csv_url = url.replace("/edit#gid=", "/export?format=csv&gid=")
         else:
             csv_url = url
-        df = pd.read_csv(csv_url, skiprows=3)  # ab Zeile 4 (index 3)
+        df = pd.read_csv(sheet_url, header=None, usecols=[0], engine="python")
         keywords = df.iloc[:, 0].dropna().tolist()
         return keywords
     except Exception as e:
